@@ -24,12 +24,12 @@ class MayaWindow(QWidget): #Define class MayaWindow
         return "ejdowi309wrjsfmd" #Returns unique identifier for this widget
 
 class TextureCombiner:
-    def __init__(self):
+    def __init__(self, resolution, destination, filename):
         self.target = ""
         self.source = ""
-        self.textureResolution = 1024
-        self.outputDestination = ""
-        self.filename = ""
+        self.textureResolution = resolution
+        self.outputDestination = destination
+        self.filename = filename
 
     #TODO: Combine meshes
     #TODO: Delete history
@@ -41,9 +41,10 @@ class TextureCombiner:
 
         #Auto unwrap UVs with padding
         mc.polyAutoProjection(f'{self.target}.f[*]', ps=0.5)
+        mc.delete(self.target, ch=True)
 
     def RunSurfaceSampler(self):
-        commandString = f'surfaceSampler -target {self.target} -uvSet UVmap_0 -searchOffset 0 -maxSearchDistance 0 -searchCage "" '
+        commandString = f'surfaceSampler -target {self.target} -searchOffset 0 -maxSearchDistance 0 -searchCage "" '
         commandString += f'-source {self.source} -mapOutput normal -mapWidth {self.textureResolution} -mapHeight {self.textureResolution} -max 1 -mapSpace tangent -mapMaterials 1 -shadows 1 '
         commandString += f'-filename "{self.outputDestination}/{self.filename}_normal" -fileFormat "png" -mapOutput diffuseRGB '
         commandString += f'-mapWidth {self.textureResolution} -mapHeight {self.textureResolution} -max 1 -mapSpace tangent -mapMaterials 1 -shadows 1 -filename "{self.outputDestination}/{self.filename}_color" -fileFormat "png" '
@@ -52,11 +53,13 @@ class TextureCombiner:
         print(commandString)
         mel.eval(commandString)
 
+        mc.delete(self.target)
+
 class TextureCombinerWidget(MayaWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Texture Combiner")
-        self.textureCombiner = TextureCombiner()
+        self.textureCombiner = TextureCombiner(1024, "D:/profile redirect/schrulll/Desktop/TextureCombinerOutput", "sparrow")
 
         self.masterLayout = QVBoxLayout()
         self.setLayout(self.masterLayout)
@@ -72,8 +75,8 @@ class TextureCombinerWidget(MayaWindow):
             raise Exception("Please select a mesh") #Display error
         
         self.textureCombiner.source = selectedMesh
-
         self.textureCombiner.ReadySelectionForSampling()
+        self.textureCombiner.RunSurfaceSampler()
         
 textureWidget = TextureCombinerWidget()
 textureWidget.show()
