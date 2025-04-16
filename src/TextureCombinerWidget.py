@@ -41,7 +41,17 @@ class TextureCombiner:
 
         #Auto unwrap UVs with padding
         mc.polyAutoProjection(f'{self.target}.f[*]', ps=0.5)
+        self.MakeOutputMaterial(self.target)
+        #Delete history (c)hannel (h)istory
         mc.delete(self.target, ch=True)
+        #Freeze transform
+        mc.makeIdentity(self.target)
+
+    def MakeOutputMaterial(self, object):
+        outputMat = mc.shadingNode('aiStandardSurface', asShader=True, name="M_Output")
+        outputMatSG = mc.sets(name="%sSG" % outputMat, empty=True, renderable=True, noSurfaceShader=True)
+        mc.connectAttr("%s.outColor" % outputMat, "%s.surfaceShader" % outputMatSG)
+        #mc.sets(object, forceElement=outputMat)
 
     def RunSurfaceSampler(self):
         commandString = f'surfaceSampler -target {self.target} -searchOffset 0 -maxSearchDistance 0 -searchCage "" '
@@ -53,13 +63,14 @@ class TextureCombiner:
         print(commandString)
         mel.eval(commandString)
 
-        mc.delete(self.target)
+        #mc.delete(self.source)
+        #self.target.replace("_dup", "")
 
 class TextureCombinerWidget(MayaWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Texture Combiner")
-        self.textureCombiner = TextureCombiner(1024, "D:/profile redirect/schrulll/Desktop/TextureCombinerOutput", "sparrow")
+        self.textureCombiner = TextureCombiner(1024, "D:/Unity/Assets/CombinedItems", "ShelfItems")
 
         self.masterLayout = QVBoxLayout()
         self.setLayout(self.masterLayout)
