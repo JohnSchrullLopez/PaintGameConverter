@@ -49,9 +49,9 @@ class TextureCombiner:
 
     def MakeOutputMaterial(self, object):
         outputMat = mc.shadingNode('aiStandardSurface', asShader=True, name="M_Output")
-        outputMatSG = mc.sets(name="%sSG" % outputMat, empty=True, renderable=True, noSurfaceShader=True)
-        mc.connectAttr("%s.outColor" % outputMat, "%s.surfaceShader" % outputMatSG)
-        #mc.sets(object, forceElement=outputMat)
+        outputMatSG = mc.sets(name="%s" % outputMat, empty=True, renderable=True, noSurfaceShader=True)
+        mc.connectAttr("%s.outColor" % outputMat, "%s.surfaceShader" % outputMatSG, f=True)
+        mc.sets(object, forceElement=outputMatSG)
 
     def RunSurfaceSampler(self):
         commandString = f'surfaceSampler -target {self.target} -searchOffset 0 -maxSearchDistance 0 -searchCage "" '
@@ -70,7 +70,7 @@ class TextureCombinerWidget(MayaWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Texture Combiner")
-        self.textureCombiner = TextureCombiner(1024, "D:/Unity/Assets/CombinedItems", "ShelfItems")
+        self.textureCombiner = TextureCombiner(1024, "D:/profile redirect/schrulll/Desktop/TextureCombinerOutput", "ShelfItems")
 
         self.masterLayout = QVBoxLayout()
         self.setLayout(self.masterLayout)
