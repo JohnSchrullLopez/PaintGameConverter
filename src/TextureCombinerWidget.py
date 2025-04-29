@@ -1,3 +1,4 @@
+from PySide2 import QtCore
 from PySide2.QtWidgets import QHBoxLayout, QLabel, QLineEdit, QMainWindow, QMessageBox, QPushButton, QSlider, QVBoxLayout, QWidget #import classes from the QtWidgets module
 from PySide2.QtCore import Qt #Import Qt class from QtCore
 import maya.OpenMayaUI as OpenMayaUI #Import Maya UI module
@@ -75,6 +76,17 @@ class TextureCombinerWidget(MayaWindow):
         self.masterLayout = QVBoxLayout()
         self.setLayout(self.masterLayout)
 
+        #Resolution
+        resolutionLayout = QHBoxLayout()
+        self.resolutionLabel = QLabel("Output Resolution: ")
+        resolutionLayout.addWidget(self.resolutionLabel)
+
+        resolutionLineEdit = QLineEdit()
+        resolutionLineEdit.textChanged.connect(self.SetResolution)
+        resolutionLayout.addWidget(resolutionLineEdit)
+
+        self.masterLayout.addLayout(resolutionLayout)
+
         combineTextureButton = QPushButton("Combine Textures")
         combineTextureButton.clicked.connect(self.RunTextureCombiner)
         self.masterLayout.addWidget(combineTextureButton)
@@ -88,6 +100,9 @@ class TextureCombinerWidget(MayaWindow):
         self.textureCombiner.source = selectedMesh
         self.textureCombiner.ReadySelectionForSampling()
         self.textureCombiner.RunSurfaceSampler()
+
+    def SetResolution(self):
+        pass
         
 textureWidget = TextureCombinerWidget()
 textureWidget.show()
