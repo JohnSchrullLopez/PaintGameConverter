@@ -1,5 +1,6 @@
 from PySide2 import QtCore
-from PySide2.QtWidgets import QHBoxLayout, QLabel, QLineEdit, QMainWindow, QMessageBox, QPushButton, QSlider, QVBoxLayout, QWidget #import classes from the QtWidgets module
+from PySide2.QtGui import QIntValidator, QRegExpValidator
+from PySide2.QtWidgets import QFileDialog, QHBoxLayout, QLabel, QLineEdit, QMainWindow, QMessageBox, QPushButton, QSlider, QVBoxLayout, QWidget #import classes from the QtWidgets module
 from PySide2.QtCore import Qt #Import Qt class from QtCore
 import maya.OpenMayaUI as OpenMayaUI #Import Maya UI module
 import shiboken2 #Import shoken2
@@ -40,8 +41,9 @@ class TextureCombiner:
         #Get selected mesh and duplicate
         self.target = mc.duplicate(self.source, n=(self.source + "_dup"))[0]
 
-        #Auto unwrap UVs with padding
-        mc.polyAutoProjection(f'{self.target}.f[*]', ps=0.5)
+        #Auto Layout UVs with padding
+        mc.polyLayoutUV(self.target, layout=2, percentageSpace=2)
+
         self.MakeOutputMaterial(self.target)
         #Delete history (c)hannel (h)istory
         mc.delete(self.target, ch=True)
@@ -55,11 +57,11 @@ class TextureCombiner:
         mc.sets(object, forceElement=outputMatSG)
 
     def RunSurfaceSampler(self):
-        commandString = f'surfaceSampler -target {self.target} -searchOffset 0 -maxSearchDistance 0 -searchCage "" '
+        commandString = f'surfaceSampler -target {self.target} -uvSet UVSet0 -searchOffset 0 -maxSearchDistance 0 -searchCage "" '
         commandString += f'-source {self.source} -mapOutput normal -mapWidth {self.textureResolution} -mapHeight {self.textureResolution} -max 1 -mapSpace tangent -mapMaterials 1 -shadows 1 '
         commandString += f'-filename "{self.outputDestination}/{self.filename}_normal" -fileFormat "png" -mapOutput diffuseRGB '
         commandString += f'-mapWidth {self.textureResolution} -mapHeight {self.textureResolution} -max 1 -mapSpace tangent -mapMaterials 1 -shadows 1 -filename "{self.outputDestination}/{self.filename}_color" -fileFormat "png" '
-        commandString += f'-superSampling 3 -filterType 0 -filterSize 3 -overscan 1 -searchMethod 0 -useGeometryNormals 1 -ignoreMirroredFaces 0 -flipU 0 -flipV 0'
+        commandString += f'-ignoreTransforms true -superSampling 3 -filterType 0 -filterSize 3 -overscan 1 -searchMethod 0 -useGeometryNormals 1 -ignoreMirroredFaces 0 -flipU 0 -flipV 0 '
 
         print(commandString)
         mel.eval(commandString)
@@ -71,25 +73,55 @@ class TextureCombinerWidget(MayaWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Texture Combiner")
-        self.textureCombiner = TextureCombiner(1024, "D:/profile redirect/schrulll/Desktop/TextureCombinerOutput", "ShelfItems")
+        self.resolution = 512
+        self.saveLocation = ""
+        self.fileName = ""
 
         self.masterLayout = QVBoxLayout()
         self.setLayout(self.masterLayout)
 
         #Resolution
         resolutionLayout = QHBoxLayout()
-        self.resolutionLabel = QLabel("Output Resolution: ")
+        self.resolutionLabel = QLabel("Output Resolution [Square Textures Only]: ")
         resolutionLayout.addWidget(self.resolutionLabel)
 
-        resolutionLineEdit = QLineEdit()
-        resolutionLineEdit.textChanged.connect(self.SetResolution)
-        resolutionLayout.addWidget(resolutionLineEdit)
-
+        self.resolutionLineEdit = QLineEdit()
+        self.resolutionLineEdit.setValidator(QIntValidator())
+        self.resolutionLineEdit.textChanged.connect(self.SetResolution)
+        resolutionLayout.addWidget(self.resolutionLineEdit)
         self.masterLayout.addLayout(resolutionLayout)
+
+        #File Location
+        self.saveFileLayout = QHBoxLayout()
+        self.masterLayout.addLayout(self.saveFileLayout)
+
+        self.saveFileLayout.addWidget(QLabel("Filename: "))
+        self.fileNameLineEdit = QLineEdit()
+        self.fileNameLineEdit.setFixedWidth(100)
+        self.fileNameLineEdit.setValidator(QRegExpValidator("\w+"))
+        self.fileNameLineEdit.textChanged.connect(self.FileNameLineEditChanged)
+        self.saveFileLayout.addWidget(self.fileNameLineEdit)
+
+        self.saveFileLayout.addWidget(QLabel("Save Directory: "))
+        self.saveDirectoryLineEdit = QLineEdit()
+        self.saveDirectoryLineEdit.setEnabled(False)
+        self.saveFileLayout.addWidget(self.saveDirectoryLineEdit)
+
+        self.pickDirectoryButton = QPushButton("...")
+        self.pickDirectoryButton.clicked.connect(self.PickDirectoryButtonClicked)
+        self.saveFileLayout.addWidget(self.pickDirectoryButton)
 
         combineTextureButton = QPushButton("Combine Textures")
         combineTextureButton.clicked.connect(self.RunTextureCombiner)
         self.masterLayout.addWidget(combineTextureButton)
+
+    def FileNameLineEditChanged(self, newVal):
+        self.fileName = newVal
+
+    def PickDirectoryButtonClicked(self):
+        pickedLocation = QFileDialog().getExistingDirectory()
+        self.saveDirectoryLineEdit.setText(pickedLocation)
+        self.saveLocation = pickedLocation
 
     def RunTextureCombiner(self):
         try: #Check for errors
@@ -97,12 +129,14 @@ class TextureCombinerWidget(MayaWindow):
         except Exception as e: #Handle errors
             raise Exception("Please select a mesh") #Display error
         
-        self.textureCombiner.source = selectedMesh
-        self.textureCombiner.ReadySelectionForSampling()
-        self.textureCombiner.RunSurfaceSampler()
+        textureCombiner = TextureCombiner(self.resolution, self.saveLocation, self.fileName)
+        textureCombiner.source = selectedMesh
+        print(f"{textureCombiner.textureResolution} {textureCombiner.filename} {textureCombiner.outputDestination}")
+        textureCombiner.ReadySelectionForSampling()
+        textureCombiner.RunSurfaceSampler()
 
-    def SetResolution(self):
-        pass
+    def SetResolution(self, newVal):
+        self.resolution = newVal
         
 textureWidget = TextureCombinerWidget()
 textureWidget.show()
