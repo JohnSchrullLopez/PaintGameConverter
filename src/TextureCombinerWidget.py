@@ -34,6 +34,7 @@ class TextureCombiner:
         self.filename = filename
         
     def CreateNewUVs(self):
+        mc.polyLayoutUV(self.target, layout=2, percentageSpace=2)
         mc.polyAutoProjection(f'{self.target}.f[*]', ps=0.5)
         #Auto Layout UVs with padding
         mc.polyLayoutUV(self.target, layout=2, percentageSpace=2)
@@ -41,8 +42,7 @@ class TextureCombiner:
     def ReadySelectionForSampling(self):
         #Get selected mesh and duplicate
         self.target = mc.duplicate(self.source, n=(self.source + "_dup"))[0]
-
-        self.MakeOutputMaterial(self.target)
+        #self.MakeOutputMaterial(self.target)
 
         #Delete history (c)hannel (h)istory
         mc.delete(self.target, ch=True)
@@ -56,6 +56,12 @@ class TextureCombiner:
         mc.sets(object, forceElement=outputMatSG)
 
     def RunSurfaceSampler(self):
+        mc.select(cl=True)
+        mc.select(self.source)
+        mc.select(self.target, add=True)
+        print(f"{self.source} {self.target}")
+        print(f"{self.outputDestination}/{self.filename}")
+
         commandString = f'surfaceSampler -target {self.target} -uvSet UVSet0 -searchOffset 0 -maxSearchDistance 0 -searchCage "" '
         commandString += f'-source {self.source} -mapOutput normal -mapWidth {self.textureResolution} -mapHeight {self.textureResolution} -max 1 -mapSpace tangent -mapMaterials 1 -shadows 1 '
         commandString += f'-filename "{self.outputDestination}/{self.filename}_normal" -fileFormat "png" -mapOutput diffuseRGB '
