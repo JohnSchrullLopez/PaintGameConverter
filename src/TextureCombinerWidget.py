@@ -1,6 +1,6 @@
 from PySide2 import QtCore
 from PySide2.QtGui import QIntValidator, QRegExpValidator
-from PySide2.QtWidgets import QFileDialog, QHBoxLayout, QLabel, QLineEdit, QMainWindow, QMessageBox, QPushButton, QSlider, QVBoxLayout, QWidget #import classes from the QtWidgets module
+from PySide2.QtWidgets import QCheckBox, QFileDialog, QHBoxLayout, QLabel, QLineEdit, QMainWindow, QMessageBox, QPushButton, QSlider, QVBoxLayout, QWidget #import classes from the QtWidgets module
 from PySide2.QtCore import Qt #Import Qt class from QtCore
 import maya.OpenMayaUI as OpenMayaUI #Import Maya UI module
 import shiboken2 #Import shoken2
@@ -32,19 +32,18 @@ class TextureCombiner:
         self.textureResolution = resolution
         self.outputDestination = destination
         self.filename = filename
-
-    #TODO: Combine meshes
-    #TODO: Delete history
-
+        
+    def CreateNewUVs(self):
+        mc.polyAutoProjection(f'{self.target}.f[*]', ps=0.5)
+        #Auto Layout UVs with padding
+        mc.polyLayoutUV(self.target, layout=2, percentageSpace=2)
 
     def ReadySelectionForSampling(self):
         #Get selected mesh and duplicate
         self.target = mc.duplicate(self.source, n=(self.source + "_dup"))[0]
 
-        #Auto Layout UVs with padding
-        mc.polyLayoutUV(self.target, layout=2, percentageSpace=2)
-
         self.MakeOutputMaterial(self.target)
+
         #Delete history (c)hannel (h)istory
         mc.delete(self.target, ch=True)
         #Freeze transform
@@ -66,16 +65,14 @@ class TextureCombiner:
         print(commandString)
         mel.eval(commandString)
 
-        #mc.delete(self.source)
-        #self.target.replace("_dup", "")
-
 class TextureCombinerWidget(MayaWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Texture Combiner")
-        self.resolution = 512
+        self.resolution = ""
         self.saveLocation = ""
         self.fileName = ""
+        self.shouldCreateUVs = False
 
         self.masterLayout = QVBoxLayout()
         self.setLayout(self.masterLayout)
@@ -95,6 +92,9 @@ class TextureCombinerWidget(MayaWindow):
         self.saveFileLayout = QHBoxLayout()
         self.masterLayout.addLayout(self.saveFileLayout)
 
+        #
+        # Filename Label
+        #
         self.saveFileLayout.addWidget(QLabel("Filename: "))
         self.fileNameLineEdit = QLineEdit()
         self.fileNameLineEdit.setFixedWidth(100)
@@ -102,18 +102,38 @@ class TextureCombinerWidget(MayaWindow):
         self.fileNameLineEdit.textChanged.connect(self.FileNameLineEditChanged)
         self.saveFileLayout.addWidget(self.fileNameLineEdit)
 
+        #
+        # Save Directory Label
+        #
         self.saveFileLayout.addWidget(QLabel("Save Directory: "))
         self.saveDirectoryLineEdit = QLineEdit()
         self.saveDirectoryLineEdit.setEnabled(False)
         self.saveFileLayout.addWidget(self.saveDirectoryLineEdit)
 
+        #
+        # Save Directory Button
+        #
         self.pickDirectoryButton = QPushButton("...")
         self.pickDirectoryButton.clicked.connect(self.PickDirectoryButtonClicked)
         self.saveFileLayout.addWidget(self.pickDirectoryButton)
 
+        #
+        # Create UV Checkbox
+        #
+        self.createNewUVCheckbox = QCheckBox("Create New UVs?")
+        self.createNewUVCheckbox.toggled.connect(self.CreateNewUVCheckboxClicked)
+        self.saveFileLayout.addWidget(self.createNewUVCheckbox)
+
+        #
+        # Combine Texture Button
+        #
         combineTextureButton = QPushButton("Combine Textures")
         combineTextureButton.clicked.connect(self.RunTextureCombiner)
         self.masterLayout.addWidget(combineTextureButton)
+
+    def CreateNewUVCheckboxClicked(self):
+        self.shouldCreateUVs = not self.shouldCreateUVs
+        print(self.shouldCreateUVs)
 
     def FileNameLineEditChanged(self, newVal):
         self.fileName = newVal
@@ -127,12 +147,24 @@ class TextureCombinerWidget(MayaWindow):
         try: #Check for errors
             selectedMesh = mc.ls(sl=True)[0]
         except Exception as e: #Handle errors
-            raise Exception("Please select a mesh") #Display error
+            QMessageBox().critical(None, "Error", "Please Select a Mesh!")
+            return
+        if self.resolution == "":
+            QMessageBox().critical(None, "Error", "Please set a resolution!")
+            return
+        elif self.fileName == "":
+            QMessageBox().critical(None, "Error", "Please set a filename!")
+            return
+        elif self.saveLocation == "":
+            QMessageBox().critical(None, "Error", "Please pick a save location!")
+            return
         
         textureCombiner = TextureCombiner(self.resolution, self.saveLocation, self.fileName)
         textureCombiner.source = selectedMesh
-        print(f"{textureCombiner.textureResolution} {textureCombiner.filename} {textureCombiner.outputDestination}")
+        
         textureCombiner.ReadySelectionForSampling()
+        if (self.shouldCreateUVs):
+            textureCombiner.CreateNewUVs()
         textureCombiner.RunSurfaceSampler()
 
     def SetResolution(self, newVal):
